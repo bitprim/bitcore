@@ -6,6 +6,7 @@ import { ChainNetwork } from '../../types/ChainNetwork';
 import { StreamingFindOptions } from '../../services/storage';
 import { MongoBound } from "../../models/base";
 import { ITransaction } from "../../models/transaction";
+import { Writable } from 'stream';
 export declare namespace CSP {
   export type StreamWalletTransactionsArgs = {
     startBlock: number;
@@ -71,6 +72,13 @@ export declare namespace CSP {
     res: Response;
     args: any;
   };
+
+  export type StreamTransactionsBitprimParams = ChainNetwork & {
+    req: Request;
+    res: Writable;
+    args: any;
+  };
+
   export type StreamTransactionParams = ChainNetwork & {
     txId: string;
   };
@@ -126,6 +134,8 @@ export declare namespace CSP {
     getCoinsForTx(params: { chain: string; network: string; txid: string }): Promise<any>;
     getLocalTip(params): Promise<any>;
     getLocatorHashes(params): Promise<any>;
+
+    getTransactionsBitprim(params: StreamTransactionsBitprimParams): any;
   }
 
   type ChainStateServices = { [key: string]: IChainStateService };

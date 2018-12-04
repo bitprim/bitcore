@@ -1,9 +1,10 @@
 import { Router } from 'express';
-// import { CSP } from '../../types/namespaces/ChainStateProvider';
+import { CSP } from '../../types/namespaces/ChainStateProvider';
 import { ChainStateProvider } from '../../providers/chain-state';
 // import logger from '../../logger';
 import { Request, Response } from 'express';
 import { IBlock } from '../../types/Block';
+import { Writable } from 'stream';
 
 const router = Router({ mergeParams: true });
 
@@ -168,6 +169,26 @@ function isIBlock(data: IBlock | string): data is IBlock {
     return (<IBlock>data).bits !== undefined;
 }
 
+class StreamWriter extends Writable {
+    private _data: string;
+
+    constructor() {
+        super();
+        this._data = "";
+    }
+
+    public get data(): string {
+        return this._data;
+    }
+
+    _write(chunk, enc, next) {
+        typeof enc;
+        this._data += chunk.toString();
+        next();
+    }
+
+}
+
 //Get block by hash
 router.get('/block/:blockId',  async function(req: Request, res: Response) {
     let { blockId, chain, network } = req.params;
@@ -214,7 +235,31 @@ router.get('/block/:blockId',  async function(req: Request, res: Response) {
         delete castedBlock.previousBlockHash;
         delete castedBlock.chain;
 
-      return res.json(castedBlock);
+        // Get Transactions
+        let writable : StreamWriter = new StreamWriter();
+        // TODO (guille): Check if limit and since needs to be set for big blocks
+        let payload: CSP.StreamTransactionsBitprimParams = {
+            chain,
+            network,
+            req,
+            res : writable,
+            // args: { limit, since, direction, paging }
+            args:{}
+          };
+        payload.args.blockHash = blockId;
+        await ChainStateProvider.getTransactionsBitprim(payload);
+
+        const txns = JSON.parse(writable.data);
+
+        castedBlock.txns = []
+
+        // Add txns
+        for (let i in txns){
+            castedBlock.txns.push(txns[i].txid);
+        }
+
+        return res.json(castedBlock);
+
     } catch (err) {
       return res.status(500).send(err);
     }

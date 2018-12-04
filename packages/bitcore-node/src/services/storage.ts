@@ -9,6 +9,7 @@ import { MongoClient, Db, Cursor } from 'mongodb';
 import { MongoBound } from '../models/base';
 import '../models';
 import { StreamingFindOptions } from '../types/Query';
+import { Writable } from 'stream';
 
 export { StreamingFindOptions };
 
@@ -134,6 +135,54 @@ export class StorageService {
       }
     });
   }
+
+  apiStreamBitprim<T>(cursor: Cursor<T>, req: Request, res: Writable) {
+    return new Promise(function(resolve, reject){
+      let closed = false;
+      req.on('close', function () {
+        closed = true;
+        cursor.close();
+      });
+      res.on('close', function () {
+        closed = true;
+        cursor.close();
+      });
+      cursor.on('error', function() {
+        if (!closed) {
+          closed = true;
+        }
+        // TODO (guille): Set a nice error message
+        reject("Storage error")
+      });
+      let isFirst = true;
+      cursor.on('data', function(data) {
+        if (!closed) {
+          if (isFirst) {
+            res.write('[\n');
+            isFirst = false;
+          } else {
+            res.write(',\n');
+          }
+          res.write(data);
+        } else {
+          cursor.close();
+        }
+      });
+      cursor.on('end', function() {
+        if (!closed) {
+          if (isFirst) {
+            // there was no data
+            res.write('[]');
+          } else {
+            res.write(']');
+          }
+          res.end();
+        }
+        resolve();
+      });
+    })
+    
+  }
   getFindOptions<T>(model: TransformableModel<T>, originalOptions: StreamingFindOptions<T>) {
     let query: any = {};
     let since: any = null;
@@ -181,6 +230,25 @@ export class StorageService {
       cursor = cursor.sort(options.sort);
     }
     return this.apiStream(cursor, req, res);
+  }
+
+  apiStreamBitprimFind<T>(
+    model: TransformableModel<T>,
+    originalQuery: any,
+    originalOptions: StreamingFindOptions<T>,
+    req: Request,
+    res: Writable,
+    transform?: (data: T) => string | Buffer
+  ) {
+    const { query, options } = this.getFindOptions(model, originalOptions);
+    const finalQuery = Object.assign({}, originalQuery, query);
+    let cursor = model.collection.find(finalQuery, options).stream({
+      transform: transform || model._apiTransform
+    });
+    if (options.sort) {
+      cursor = cursor.sort(options.sort);
+    }
+    return this.apiStreamBitprim(cursor, req, res);
   }
 }
 

@@ -177,6 +177,35 @@ export class InternalStateProvider implements CSP.IChainStateService {
     });
   }
 
+  async getTransactionsBitprim(params: CSP.StreamTransactionsBitprimParams) {
+    const { chain, network, req, res, args } = params;
+    let { blockHash, blockHeight } = args;
+    if (!chain || !network) {
+      throw 'Missing chain or network';
+    }
+    let query: any = {
+      chain: chain,
+      network: network.toLowerCase()
+    };
+    if (blockHeight) {
+      query.blockHeight = Number(blockHeight);
+    }
+    if (blockHash) {
+      query.blockHash = blockHash;
+    }
+    const tip = await this.getLocalTip(params);
+    const tipHeight = tip ? tip.height : 0;
+    return Storage.apiStreamBitprimFind(TransactionModel, query, args, req, res, t => {
+      let confirmations = 0;
+      if (t.blockHeight && t.blockHeight >= 0) {
+        confirmations = tipHeight - t.blockHeight + 1;
+      }
+      const convertedTx = TransactionModel._apiTransform(t, { object: true }) as Partial<ITransaction>;
+      return JSON.stringify({ ...convertedTx, confirmations: confirmations });
+    });
+  }
+
+
   async getTransaction(params: CSP.StreamTransactionParams) {
     let { chain, network, txId } = params;
     if (typeof txId !== 'string' || !chain || !network) {
