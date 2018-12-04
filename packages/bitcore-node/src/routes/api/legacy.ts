@@ -2,11 +2,14 @@ import { Router } from 'express';
 // import { CSP } from '../../types/namespaces/ChainStateProvider';
 import { ChainStateProvider } from '../../providers/chain-state';
 // import logger from '../../logger';
+import { Request, Response } from 'express';
+import { IBlock } from '../../types/Block';
+
 const router = Router({ mergeParams: true });
 
 const bitcoreLib = require('bitcore-lib-cash');
 
-/************* Transactions ***************/
+// Get transation by hash
 router.get('/tx/:txId', async (req,res) =>{
   let { chain, network, txId } = req.params;
   if (typeof txId !== 'string' || !chain || !network) {
@@ -159,6 +162,62 @@ router.get('/tx/:txId', async (req,res) =>{
   } catch (err) {
     return res.status(500).send(err);
   }
+});
+
+function isIBlock(data: IBlock | string): data is IBlock {
+    return (<IBlock>data).bits !== undefined;
+}
+
+//Get block by hash
+router.get('/block/:blockId',  async function(req: Request, res: Response) {
+    let { blockId, chain, network } = req.params;
+    try {
+        let block = await ChainStateProvider.getBlock({ chain, network, blockId });
+        if (!block) {
+        return res.status(404).send('block not found');
+        }
+
+        let castedBlock;
+        if (isIBlock(block)) {
+            castedBlock = <IBlock>block;
+        } else {
+            castedBlock = JSON.parse(block.toString());
+        }
+
+        // TODO (guille): chainwork is missing
+        castedBlock.chainwork = "0";
+        // TODO (guille): is mainchain is missing
+        castedBlock.isMainChain = true;
+        // TODO (guille): pool info is missing
+        castedBlock.poolInfo = {};
+        // TODO (guille): difficulty is missing 
+        castedBlock.difficulty = 1; // TODO(guille): Generate the difficulty value using the bits
+        // TODO (guille): block reward is returning less than the legacy version (maybe it's not including fees)
+        castedBlock.reward = bitcoreLib.Unit.fromSatoshis(castedBlock.reward).toBTC();
+
+        //Renames
+        castedBlock.merkleroot = castedBlock.merkleRoot;
+        castedBlock.nextblockhash = castedBlock.nextBlockHash;
+        castedBlock.previousblockhash = castedBlock.previousBlockHash;
+        
+        // Convert values
+        castedBlock.bits = castedBlock.bits.toString(16);
+        castedBlock.time = castedBlock.time.getTime()/1000
+
+        // Delete extra params
+        delete castedBlock._id;
+        delete castedBlock.network;
+        delete castedBlock.timeNormalized;
+        delete castedBlock.transactionCount;
+        delete castedBlock.merkleRoot;
+        delete castedBlock.nextBlockHash;
+        delete castedBlock.previousBlockHash;
+        delete castedBlock.chain;
+
+      return res.json(castedBlock);
+    } catch (err) {
+      return res.status(500).send(err);
+    }
 });
 
 
