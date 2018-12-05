@@ -189,77 +189,109 @@ class StreamWriter extends Writable {
 
 }
 
+async function ProcessBlockRequest(req: Request, res: Response, isHash: boolean){
+  let { blockId, chain, network } = req.params;
+  try {
+      let block = await ChainStateProvider.getBlock({ chain, network, blockId });
+      if (!block) {
+      return res.status(404).send('block not found');
+      }
+
+      let castedBlock;
+      if (isIBlock(block)) {
+          castedBlock = <IBlock>block;
+      } else {
+          castedBlock = JSON.parse(block.toString());
+      }
+
+      // TODO (guille): chainwork is missing
+      castedBlock.chainwork = "0";
+      // TODO (guille): is mainchain is missing
+      castedBlock.isMainChain = true;
+      // TODO (guille): pool info is missing
+      castedBlock.poolInfo = {};
+      // TODO (guille): difficulty is missing 
+      castedBlock.difficulty = 1; // TODO(guille): Generate the difficulty value using the bits
+      // TODO (guille): block reward is returning less than the legacy version (maybe it's not including fees)
+      castedBlock.reward = bitcoreLib.Unit.fromSatoshis(castedBlock.reward).toBTC();
+
+      //Renames
+      castedBlock.merkleroot = castedBlock.merkleRoot;
+      castedBlock.nextblockhash = castedBlock.nextBlockHash;
+      castedBlock.previousblockhash = castedBlock.previousBlockHash;
+      
+      // Convert values
+      castedBlock.bits = castedBlock.bits.toString(16);
+      castedBlock.time = castedBlock.time.getTime()/1000
+
+      // Delete extra params
+      delete castedBlock._id;
+      delete castedBlock.network;
+      delete castedBlock.timeNormalized;
+      delete castedBlock.transactionCount;
+      delete castedBlock.merkleRoot;
+      delete castedBlock.nextBlockHash;
+      delete castedBlock.previousBlockHash;
+      delete castedBlock.chain;
+
+      // Get Transactions
+      let writable : StreamWriter = new StreamWriter();
+      // TODO (guille): Check if limit and since needs to be set for big blocks
+      let payload: CSP.StreamTransactionsBitprimParams = {
+          chain,
+          network,
+          req,
+          res : writable,
+          // args: { limit, since, direction, paging }
+          args:{}
+        };
+      
+        if (isHash){
+          payload.args.blockHash = blockId;
+        } else {
+          payload.args.blockHeight = parseInt(blockId);
+        }
+      
+      await ChainStateProvider.getTransactionsBitprim(payload);
+
+      const txns = JSON.parse(writable.data);
+
+      castedBlock.txns = []
+
+      // Add txns
+      for (let i in txns){
+          castedBlock.txns.push(txns[i].txid);
+      }
+
+      return res.json(castedBlock);
+
+  } catch (err) {
+    return res.status(500).send(err);
+  }
+}
+
 //Get block by hash
 router.get('/block/:blockId',  async function(req: Request, res: Response) {
-    let { blockId, chain, network } = req.params;
-    try {
-        let block = await ChainStateProvider.getBlock({ chain, network, blockId });
-        if (!block) {
-        return res.status(404).send('block not found');
-        }
+  return ProcessBlockRequest(req, res, true);
+});
 
-        let castedBlock;
-        if (isIBlock(block)) {
-            castedBlock = <IBlock>block;
-        } else {
-            castedBlock = JSON.parse(block.toString());
-        }
+//Get blockhash by height
+router.get('/block-index/:blockId',  async function(req: Request, res: Response) {
+  let { blockId, chain, network } = req.params;
+  try {
+      let block = await ChainStateProvider.getBlock({ chain, network, blockId });
+      if (!block) {
+          return res.status(404).send('block not found');
+      }
 
-        // TODO (guille): chainwork is missing
-        castedBlock.chainwork = "0";
-        // TODO (guille): is mainchain is missing
-        castedBlock.isMainChain = true;
-        // TODO (guille): pool info is missing
-        castedBlock.poolInfo = {};
-        // TODO (guille): difficulty is missing 
-        castedBlock.difficulty = 1; // TODO(guille): Generate the difficulty value using the bits
-        // TODO (guille): block reward is returning less than the legacy version (maybe it's not including fees)
-        castedBlock.reward = bitcoreLib.Unit.fromSatoshis(castedBlock.reward).toBTC();
-
-        //Renames
-        castedBlock.merkleroot = castedBlock.merkleRoot;
-        castedBlock.nextblockhash = castedBlock.nextBlockHash;
-        castedBlock.previousblockhash = castedBlock.previousBlockHash;
-        
-        // Convert values
-        castedBlock.bits = castedBlock.bits.toString(16);
-        castedBlock.time = castedBlock.time.getTime()/1000
-
-        // Delete extra params
-        delete castedBlock._id;
-        delete castedBlock.network;
-        delete castedBlock.timeNormalized;
-        delete castedBlock.transactionCount;
-        delete castedBlock.merkleRoot;
-        delete castedBlock.nextBlockHash;
-        delete castedBlock.previousBlockHash;
-        delete castedBlock.chain;
-
-        // Get Transactions
-        let writable : StreamWriter = new StreamWriter();
-        // TODO (guille): Check if limit and since needs to be set for big blocks
-        let payload: CSP.StreamTransactionsBitprimParams = {
-            chain,
-            network,
-            req,
-            res : writable,
-            // args: { limit, since, direction, paging }
-            args:{}
-          };
-        payload.args.blockHash = blockId;
-        await ChainStateProvider.getTransactionsBitprim(payload);
-
-        const txns = JSON.parse(writable.data);
-
-        castedBlock.txns = []
-
-        // Add txns
-        for (let i in txns){
-            castedBlock.txns.push(txns[i].txid);
-        }
-
-        return res.json(castedBlock);
-
+      let castedBlock;
+      if (isIBlock(block)) {
+          castedBlock = <IBlock>block;
+      } else {
+          castedBlock = JSON.parse(block.toString());
+      }
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).send(JSON.stringify({blockHash:castedBlock.hash}));
     } catch (err) {
       return res.status(500).send(err);
     }
