@@ -165,6 +165,8 @@ router.get('/tx/:txId', async (req,res) =>{
   }
 });
 
+
+// Block functions
 function isIBlock(data: IBlock | string): data is IBlock {
     return (<IBlock>data).bits !== undefined;
 }
@@ -295,6 +297,55 @@ router.get('/block-index/:blockId',  async function(req: Request, res: Response)
     } catch (err) {
       return res.status(500).send(err);
     }
+});
+
+router.get('/blocks', async function(req: Request, res: Response) {
+  let { chain, network } = req.params;
+  let { sinceBlock, date, limit, since, direction, paging } = req.query;
+  if (limit) {
+    limit = parseInt(limit);
+  }
+  try {
+
+    let writable = new StreamWriter();
+
+    let payload = {
+      chain,
+      network,
+      sinceBlock,
+      args: { date, limit, since, direction, paging },
+      req,
+      res : writable
+    };
+    await ChainStateProvider.getBlocksBitprim(payload);
+
+    const txns = JSON.parse(writable.data);
+    let blocks_array: any[] = [];
+
+    for (let i in txns) {
+      let date = new Date(txns[i].time)
+      let tx = {
+        height: txns[i].height,
+        size: txns[i].size,
+        hash: txns[i].hash,
+        time: date.getTime()/1000,
+        txlenght: txns[i].transactionCount,
+        // TODO (guille): pool info is not saved
+        poolInfo: {}
+      }
+      blocks_array.push(tx);
+    }
+
+    // TODO(guille): Data missing
+    // "length":87,"pagination":{"next":"2018-12-06","prev":"2018-12-04","currentTs":1544054399,"current":"2018-12-05","isToday":true,"more":false}
+    
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(JSON.stringify({blocks:blocks_array}));
+
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send(err);
+  }
 });
 
 

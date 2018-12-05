@@ -44,6 +44,10 @@ class ChainStateProxy implements CSP.ChainStateProvider {
     return this.get(params).streamBlocks(params);
   }
 
+  getBlocksBitprim(params: CSP.GetBlocksBitprimParams) {
+    return this.get(params).getBlocksBitprim(params);
+  }
+
   streamTransactions(params: CSP.StreamTransactionsParams) {
     return this.get(params).streamTransactions(params);
   }

@@ -42,6 +42,13 @@ export declare namespace CSP {
     req: Request;
     res: Response;
   };
+  export type GetBlocksBitprimParams = ChainNetwork & {
+    blockId?: string;
+    sinceBlock: number | string;
+    args?: Partial<{ startDate: Date; endDate: Date; date: Date } & StreamingFindOptions<IBlock>>;
+    req: Request;
+    res: Writable;
+  };
   export type GetEstimateSmartFeeParams = ChainNetwork & {
     target: number;
   };
@@ -136,6 +143,7 @@ export declare namespace CSP {
     getLocatorHashes(params): Promise<any>;
 
     getTransactionsBitprim(params: StreamTransactionsBitprimParams): any;
+    getBlocksBitprim(params: GetBlocksBitprimParams) : any;
   }
 
   type ChainStateServices = { [key: string]: IChainStateService };

@@ -78,6 +78,12 @@ export class InternalStateProvider implements CSP.IChainStateService {
     Storage.apiStreamingFind(BlockModel, query, options, req, res);
   }
 
+  getBlocksBitprim(params: CSP.GetBlocksBitprimParams) {
+    const { req, res } = params;
+    const { query, options } = this.getBlocksQuery(params);
+    return Storage.apiStreamBitprimFind(BlockModel, query, options, req, res);
+  }
+  
   async getBlocks(params: CSP.GetBlockParams) {
     const { query, options } = this.getBlocksQuery(params);
     let cursor = BlockModel.collection.find<IBlock>(query, options);
