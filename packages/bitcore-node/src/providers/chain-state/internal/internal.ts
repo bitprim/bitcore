@@ -45,6 +45,18 @@ export class InternalStateProvider implements CSP.IChainStateService {
     return query;
   }
 
+  private getAddressQueryBitprim(params: CSP.GetAddressTransactionsBitprimParams) {
+    const { chain, network, address, args } = params;
+    if (typeof address !== 'string' || !chain || !network) {
+      throw 'Missing required param';
+    }
+    const query = { chain: chain, network: network.toLowerCase(), address } as any;
+    if (args.unspent) {
+      query.spentHeight = { $lt: SpentHeightIndicators.minimum };
+    }
+    return query;
+  }
+
   streamAddressUtxos(params: CSP.StreamAddressUtxosParams) {
     const { req, res, args } = params;
     const { limit } = args;
@@ -59,10 +71,24 @@ export class InternalStateProvider implements CSP.IChainStateService {
     Storage.apiStreamingFind(CoinModel, query, { limit }, req, res);
   }
 
+  async getAddressTransactionsBitprim(params: CSP.GetAddressTransactionsBitprimParams) {
+    const { args, req, res } = params;
+    const { limit = 10 } = args;
+    const query = this.getAddressQueryBitprim(params);
+    return Storage.apiStreamBitprimFind(CoinModel, query, { limit }, req, res);
+  }
+  
   async getBalanceForAddress(params: CSP.GetBalanceForAddressParams) {
     const { chain, network, address } = params;
     let query = { chain, network, address };
     let balance = await CoinModel.getBalance({ query });
+    return balance;
+  }
+
+  async getReceivedForAddressBitprim(params: CSP.GetBalanceForAddressParams) {
+    const { chain, network, address } = params;
+    let query = { chain, network, address };
+    let balance = await CoinModel.getReceivedBitprim({ query });
     return balance;
   }
 

@@ -348,6 +348,136 @@ router.get('/blocks', async function(req: Request, res: Response) {
   }
 });
 
+// Address
+// TODO: optimize this call (The legacy version only returns the first 1000 transactions)
+router.get('/addr/:address', async function(req, res) {
+  let { address, chain, network } = req.params;
+  // TODO (guille): this limit should be max value
+  let { unspent, limit = 5000000 } = req.query;
+
+  let writer = new StreamWriter();
+
+  let payload = {
+    chain,
+    network,
+    address,
+    req,
+    res: writer,
+    args: { unspent, limit }
+  };
+  try{
+    // Get addr trasnactions
+    console.time('addr');
+    console.time('query mongo')
+    await ChainStateProvider.getAddressTransactionsBitprim(payload);
+    console.timeEnd('query mongo')
+
+    let t: any[] = [];
+
+    let response = {
+      addrStr: address,
+      balance: 0,
+      balanceSat: 0,
+      totalReceived: 0.0,
+      totalReceivedSat: 0,
+      totalSent: 0.0,
+      totalSentSat: 0,
+      unconfirmedBalance: 0,
+      unconfirmedBalanceSat: 0,
+      unconfirmedTxApperances: 0,
+      txApperances: 0,
+      transactions: t
+    };
+
+    const txns = JSON.parse(writer.data);
+    let received = 0;
+    let sent = 0;
+    let total = 0;
+    let transactions: any[] = [];
+    for (let i in txns) {
+      if (txns[i].coinbase){
+        // TODO: what to do here?
+      }
+      received += txns[i].value;
+      transactions.push(txns[i].txid);
+      // TODO: verify with transactions not spent 
+      if (txns[i].spentTxid){
+        transactions.push(txns[i].spentTxid)
+        sent += txns[i].value;
+      } else {
+        total += txns[i].value;
+      }
+    }
+
+    response.balance =  bitcoreLib.Unit.fromSatoshis(total).toBTC();
+    response.balanceSat = total;
+
+    response.totalReceived = bitcoreLib.Unit.fromSatoshis(received).toBTC();
+    response.totalReceivedSat = received;
+
+    response.totalSent = bitcoreLib.Unit.fromSatoshis(sent).toBTC();
+    response.totalSentSat = sent;
+    // // TODO (guille): Unconfirmed (?)
+    // response.unconfirmedBalance = 0;
+    // response.unconfirmedBalanceSat = 0;
+    // response.unconfirmedTxApperances = 0;
+    response.txApperances = transactions.length;
+    response.transactions = transactions;
+
+    console.timeEnd('addr')
+
+    
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(JSON.stringify(response));
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send(err);
+  }
+});
+
+// Address Balance
+router.get('/addr/:address/balance', async function(req, res) {
+  let { address, chain, network } = req.params;
+  try {
+    let result = await ChainStateProvider.getBalanceForAddress({
+      chain,
+      network,
+      address
+    });
+    let temp = (result && result[0]) || { balance: 0 };
+    return res.send(''+temp.balance);
+  } catch (err) {
+    return res.status(500).send(err);
+  }
+});
+
+// Address Received
+router.get('/addr/:address/totalReceived', async function(req, res) {
+  let { address, chain, network } = req.params;
+  try {
+    console.time('get Received')
+    let result = await ChainStateProvider.getReceivedForAddressBitprim({
+      chain,
+      network,
+      address
+    });
+    console.timeEnd('get Received')
+    let temp = (result && result[0]) || { balance: 0 };
+    return res.send(''+temp.balance);
+  } catch (err) {
+    return res.status(500).send(err);
+  }
+});
+
+// Address Sent
+
+
+// Address UnconfirmedBalance
+// TODO(guille): Implement unconfirmed balance
+// @ts-ignore
+router.get('/addr/:address/unconfirmedBalance', async function(req, res) {    
+    return res.send(''+0);
+});
 
 module.exports = {
     router: router,

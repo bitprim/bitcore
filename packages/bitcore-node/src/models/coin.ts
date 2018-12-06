@@ -95,6 +95,26 @@ class Coin extends BaseModel<ICoin> {
       .toArray();
   }
 
+  getReceivedBitprim(params: { query: any }) {
+    let { query } = params;
+    query = Object.assign(query, {
+    });
+    return this.collection
+      .aggregate<{ balance: number }>([
+        { $match: query },
+        { $project: { value: 1, _id: 0 }},
+        {
+          $group: {
+            _id: null,
+            balance: { $sum: '$value' }
+          }
+        },
+        { $project: { _id: false } }
+      ])
+      .toArray();
+  }
+
+
   _apiTransform(coin: Partial<MongoBound<ICoin>>, options?: { object: boolean }) {
     let transform = {
       _id: coin._id,

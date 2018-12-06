@@ -28,8 +28,16 @@ class ChainStateProxy implements CSP.ChainStateProvider {
     return this.get(params).streamAddressTransactions(params);
   }
 
+  getAddressTransactionsBitprim(params: CSP.GetAddressTransactionsBitprimParams) {
+    return this.get(params).getAddressTransactionsBitprim(params);
+  }
+
   async getBalanceForAddress(params: CSP.GetBalanceForAddressParams) {
     return this.get(params).getBalanceForAddress(params);
+  }
+
+  async getReceivedForAddressBitprim(params: CSP.GetBalanceForAddressParams) {
+    return this.get(params).getReceivedForAddressBitprim(params);
   }
 
   async getBalanceForWallet(params: CSP.GetBalanceForWalletParams) {

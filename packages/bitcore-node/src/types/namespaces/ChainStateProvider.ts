@@ -74,6 +74,13 @@ export declare namespace CSP {
     args: StreamAddressUtxosArgs;
   };
 
+  export type GetAddressTransactionsBitprimParams = ChainNetwork & {
+    address: string;
+    req: Request;
+    res: Writable;
+    args: StreamAddressUtxosArgs;
+  };
+
   export type StreamTransactionsParams = ChainNetwork & {
     req: Request;
     res: Response;
@@ -144,6 +151,8 @@ export declare namespace CSP {
 
     getTransactionsBitprim(params: StreamTransactionsBitprimParams): any;
     getBlocksBitprim(params: GetBlocksBitprimParams) : any;
+    getAddressTransactionsBitprim(params: GetAddressTransactionsBitprimParams): any;
+    getReceivedForAddressBitprim(params: GetBalanceForAddressParams): Promise<{ balance: number }[]>;
   }
 
   type ChainStateServices = { [key: string]: IChainStateService };
