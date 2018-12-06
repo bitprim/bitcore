@@ -367,10 +367,7 @@ router.get('/addr/:address', async function(req, res) {
   };
   try{
     // Get addr trasnactions
-    console.time('addr');
-    console.time('query mongo')
     await ChainStateProvider.getAddressTransactionsBitprim(payload);
-    console.timeEnd('query mongo')
 
     let t: any[] = [];
 
@@ -423,9 +420,6 @@ router.get('/addr/:address', async function(req, res) {
     // response.unconfirmedTxApperances = 0;
     response.txApperances = transactions.length;
     response.transactions = transactions;
-
-    console.timeEnd('addr')
-
     
     res.setHeader('Content-Type', 'application/json');
     return res.status(200).send(JSON.stringify(response));
@@ -455,13 +449,11 @@ router.get('/addr/:address/balance', async function(req, res) {
 router.get('/addr/:address/totalReceived', async function(req, res) {
   let { address, chain, network } = req.params;
   try {
-    console.time('get Received')
     let result = await ChainStateProvider.getReceivedForAddressBitprim({
       chain,
       network,
       address
     });
-    console.timeEnd('get Received')
     let temp = (result && result[0]) || { balance: 0 };
     return res.send(''+temp.balance);
   } catch (err) {
@@ -473,13 +465,11 @@ router.get('/addr/:address/totalReceived', async function(req, res) {
 router.get('/addr/:address/totalSent', async function(req, res) {
   let { address, chain, network } = req.params;
   try {
-    console.time('get Sent')
     let result = await ChainStateProvider.getSentForAddressBitprim({
       chain,
       network,
       address
     });
-    console.timeEnd('get Sent')
     let temp = (result && result[0]) || { balance: 0 };
     return res.send(''+temp.balance);
   } catch (err) {
