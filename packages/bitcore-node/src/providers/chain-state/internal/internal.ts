@@ -75,7 +75,32 @@ export class InternalStateProvider implements CSP.IChainStateService {
     const { args, req, res } = params;
     const { limit = 10 } = args;
     const query = this.getAddressQueryBitprim(params);
-    return Storage.apiStreamBitprimFind(CoinModel, query, { limit }, req, res);
+
+    const tip = await this.getLocalTip(params);
+    const tipHeight = tip ? tip.height : 0;
+
+    return Storage.apiStreamBitprimFind(CoinModel, query, { limit }, req, res, (data)=>{      
+      let coin: Partial<MongoBound<ICoin>> = data;
+      let confirmations = 0;
+      if (coin.mintHeight && coin.mintHeight >= 0) {
+        confirmations = tipHeight - coin.mintHeight + 1;
+      }
+      let transform = {
+        _id: coin._id,
+        txid: coin.mintTxid,
+        coinbase: coin.coinbase,
+        vout: coin.mintIndex,
+        spentTxid: coin.spentTxid,
+        mintTxid: coin.mintTxid,
+        mintHeight: coin.mintHeight,
+        spentHeight: coin.spentHeight,
+        address: coin.address,
+        script: coin.script ? coin.script.buffer : coin.script,
+        value: coin.value,
+        confirmations: confirmations
+      };
+      return JSON.stringify(transform);
+    });
   }
   
   async getBalanceForAddress(params: CSP.GetBalanceForAddressParams) {

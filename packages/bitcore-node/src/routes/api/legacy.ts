@@ -477,6 +477,53 @@ router.get('/addr/:address/totalSent', async function(req, res) {
   }
 });
 
+// Address UTXO
+// TODO: address should be an array
+router.get('/addr/:address/utxo', async function(req, res) {
+  let { address, chain, network } = req.params;
+  let unspent = true;
+  // TODO (guille): this limit should be max value
+  let limit = 5000000;
+
+  let writer = new StreamWriter();
+
+  let payload = {
+    chain,
+    network,
+    address,
+    req,
+    res: writer,
+    args: { unspent, limit }
+  };
+  try{
+    // Get addr trasnactions
+    await ChainStateProvider.getAddressTransactionsBitprim(payload);
+
+    let t: any[] = [];
+    const txns = JSON.parse(writer.data);
+
+    for (let i in txns) {
+      const element = {
+        address: address,
+        amount: bitcoreLib.Unit.fromSatoshis(txns[i].value).toBTC(),
+        confirmations: txns[i].confirmations,
+        height: txns[i].mintHeight,
+        satoshis: txns[i].value,
+        scriptPubKey: Buffer.from(txns[i].script).toString('hex'),
+        txid: txns[i].txid,
+        vout: txns[i].vout
+      }
+      t.push(element);
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(JSON.stringify(t));
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send(err);
+  }
+});
+
 // Address UnconfirmedBalance
 // TODO(guille): Implement unconfirmed balance
 // @ts-ignore
