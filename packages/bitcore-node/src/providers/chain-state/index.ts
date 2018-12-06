@@ -40,6 +40,10 @@ class ChainStateProxy implements CSP.ChainStateProvider {
     return this.get(params).getReceivedForAddressBitprim(params);
   }
 
+  async getSentForAddressBitprim(params: CSP.GetBalanceForAddressParams) {
+    return this.get(params).getSentForAddressBitprim(params);
+  }
+
   async getBalanceForWallet(params: CSP.GetBalanceForWalletParams) {
     return this.get(params).getBalanceForWallet(params);
   }

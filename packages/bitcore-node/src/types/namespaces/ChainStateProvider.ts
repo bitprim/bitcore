@@ -153,6 +153,7 @@ export declare namespace CSP {
     getBlocksBitprim(params: GetBlocksBitprimParams) : any;
     getAddressTransactionsBitprim(params: GetAddressTransactionsBitprimParams): any;
     getReceivedForAddressBitprim(params: GetBalanceForAddressParams): Promise<{ balance: number }[]>;
+    getSentForAddressBitprim(params: GetBalanceForAddressParams): Promise<{ balance: number }[]>;
   }
 
   type ChainStateServices = { [key: string]: IChainStateService };

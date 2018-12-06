@@ -98,6 +98,28 @@ class Coin extends BaseModel<ICoin> {
   getReceivedBitprim(params: { query: any }) {
     let { query } = params;
     query = Object.assign(query, {
+      mintHeight: { $gt: SpentHeightIndicators.conflicting }
+    });
+    return this.collection
+      .aggregate<{ balance: number }>([
+        { $match: query },
+        { $project: { value: 1, _id: 0 }},
+        {
+          $group: {
+            _id: null,
+            balance: { $sum: '$value' }
+          }
+        },
+        { $project: { _id: false } }
+      ])
+      .toArray();
+  }
+
+  getSentBitprim(params: {query:any}) {
+    let { query } = params;
+    query = Object.assign(query, {
+      spentHeight: { $gt: SpentHeightIndicators.minimum }, 
+      mintHeight: { $gt: SpentHeightIndicators.conflicting }
     });
     return this.collection
       .aggregate<{ balance: number }>([

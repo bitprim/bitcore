@@ -470,7 +470,22 @@ router.get('/addr/:address/totalReceived', async function(req, res) {
 });
 
 // Address Sent
-
+router.get('/addr/:address/totalSent', async function(req, res) {
+  let { address, chain, network } = req.params;
+  try {
+    console.time('get Sent')
+    let result = await ChainStateProvider.getSentForAddressBitprim({
+      chain,
+      network,
+      address
+    });
+    console.timeEnd('get Sent')
+    let temp = (result && result[0]) || { balance: 0 };
+    return res.send(''+temp.balance);
+  } catch (err) {
+    return res.status(500).send(err);
+  }
+});
 
 // Address UnconfirmedBalance
 // TODO(guille): Implement unconfirmed balance

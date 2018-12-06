@@ -92,6 +92,13 @@ export class InternalStateProvider implements CSP.IChainStateService {
     return balance;
   }
 
+  async getSentForAddressBitprim(params: CSP.GetBalanceForAddressParams) {
+    const { chain, network, address } = params;
+    let query = { chain, network, address };
+    let balance = await CoinModel.getSentBitprim({ query });
+    return balance;
+  }
+
   async getBalanceForWallet(params: CSP.GetBalanceForWalletParams) {
     const { walletId } = params;
     let query = { wallets: walletId };
