@@ -357,15 +357,18 @@ router.get('/addr/:address', async function(req, res) {
 
   let writer = new StreamWriter();
 
-  let payload = {
-    chain,
-    network,
-    address,
-    req,
-    res: writer,
-    args: { unspent, limit }
-  };
   try{
+    // Use cashAddress without prefix
+    address = bitcoreLib.Address.fromString(address).toCashAddress(true);
+
+    let payload = {
+      chain,
+      network,
+      address,
+      req,
+      res: writer,
+      args: { unspent, limit }
+    };
     // Get addr trasnactions
     await ChainStateProvider.getAddressTransactionsBitprim(payload);
 
@@ -390,14 +393,12 @@ router.get('/addr/:address', async function(req, res) {
     let received = 0;
     let sent = 0;
     let total = 0;
+    // TODO(guille): Duplicated txns should be included only once (i.e. if the same wallet is an input and an output, the tx hash should appear only once in this array)
     let transactions: any[] = [];
     for (let i in txns) {
-      if (txns[i].coinbase){
-        // TODO: what to do here?
-      }
       received += txns[i].value;
       transactions.push(txns[i].txid);
-      // TODO: verify with transactions not spent 
+      // TODO(guille): verify if this works fine with transactions with no spent id
       if (txns[i].spentTxid){
         transactions.push(txns[i].spentTxid)
         sent += txns[i].value;
@@ -432,6 +433,9 @@ router.get('/addr/:address', async function(req, res) {
 // Address Balance
 router.get('/addr/:address/balance', async function(req, res) {
   let { address, chain, network } = req.params;
+  // Use cashAddress without prefix
+  address = bitcoreLib.Address.fromString(address).toCashAddress(true);
+
   try {
     let result = await ChainStateProvider.getBalanceForAddress({
       chain,
@@ -449,6 +453,9 @@ router.get('/addr/:address/balance', async function(req, res) {
 router.get('/addr/:address/totalReceived', async function(req, res) {
   let { address, chain, network } = req.params;
   try {
+    // Use cashAddress without prefix
+    address = bitcoreLib.Address.fromString(address).toCashAddress(true);
+
     let result = await ChainStateProvider.getReceivedForAddressBitprim({
       chain,
       network,
@@ -465,6 +472,9 @@ router.get('/addr/:address/totalReceived', async function(req, res) {
 router.get('/addr/:address/totalSent', async function(req, res) {
   let { address, chain, network } = req.params;
   try {
+    // Use cashAddress without prefix
+    address = bitcoreLib.Address.fromString(address).toCashAddress(true);
+
     let result = await ChainStateProvider.getSentForAddressBitprim({
       chain,
       network,
@@ -487,15 +497,19 @@ router.get('/addr/:address/utxo', async function(req, res) {
 
   let writer = new StreamWriter();
 
-  let payload = {
-    chain,
-    network,
-    address,
-    req,
-    res: writer,
-    args: { unspent, limit }
-  };
   try{
+    // Use cashAddress without prefix
+    address = bitcoreLib.Address.fromString(address).toCashAddress(true);  
+
+    let payload = {
+      chain,
+      network,
+      address,
+      req,
+      res: writer,
+      args: { unspent, limit }
+    };
+
     // Get addr trasnactions
     await ChainStateProvider.getAddressTransactionsBitprim(payload);
 
