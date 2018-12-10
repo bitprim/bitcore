@@ -10,18 +10,17 @@ const router = Router({ mergeParams: true });
 
 const bitcoreLib = require('bitcore-lib-cash');
 
-// Get transation by hash
-router.get('/tx/:txId', async (req,res) =>{
-  let { chain, network, txId } = req.params;
+
+async function getDetailedTransaction(chain, network, txId) {
   if (typeof txId !== 'string' || !chain || !network) {
-    return res.status(400).send('Missing required param');
+    return {status: 400, message: 'Missing required param'};
   }
   chain = chain.toUpperCase();
   network = network.toLowerCase();
   try {
     const tx = await ChainStateProvider.getTransaction({ chain, network, txId });
     if (!tx) {
-      return res.status(404).send(`txid ${txId} could not be found`);
+      return {status: 400, message: `txid ${txId} could not be found`};
     } else {
 
       let txid = txId;
@@ -157,12 +156,22 @@ router.get('/tx/:txId', async (req,res) =>{
       delete tx.network    
       delete tx.fee
 
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(200).send(JSON.stringify(tx));
+      return {status: 200, message: tx};
     }
   } catch (err) {
-    return res.status(500).send(err);
+    return {status: 400, message: err};
   }
+}
+
+// Get transation by hash
+router.get('/tx/:txId', async (req,res) =>{
+  let { chain, network, txId } = req.params;
+  let result = await getDetailedTransaction(chain, network, txId);
+  if (result.status === 200) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(result.status).send(JSON.stringify(result.message));
+  }
+  return res.status(result.status).send(result.message);
 });
 
 
@@ -532,6 +541,71 @@ router.get('/addr/:address/utxo', async function(req, res) {
 
     res.setHeader('Content-Type', 'application/json');
     return res.status(200).send(JSON.stringify(t));
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send(err);
+  }
+});
+
+function uniq(a) {
+  var seen = {};
+  return a.filter(function(item) {
+      return seen.hasOwnProperty(item) ? false : (seen[item] = true);
+  });
+}
+
+// Address transactions 
+
+// Address
+// TODO (guille): this should be paginated
+router.get('/txs', async function(req, res) {
+  let { chain, network } = req.params;
+  // TODO (guille): this limit should be max value
+  let { address, unspent, limit = 5000000 } = req.query;
+
+  if (!address) {
+    // Address is undenifed return error
+    return res.status(404).send('The address doesn\'t exists');
+  }  
+
+  let writer = new StreamWriter();
+
+  try{
+    // Use cashAddress without prefix
+    address = bitcoreLib.Address.fromString(address).toCashAddress(true);
+
+    let payload = {
+      chain,
+      network,
+      address,
+      req,
+      res: writer,
+      args: { unspent, limit }
+    };
+    // Get addr trasnactions
+    await ChainStateProvider.getAddressTransactionsBitprim(payload);
+    let txns = JSON.parse(writer.data);
+    txns = uniq(txns);
+
+    let t: any[] = [];
+
+    let response = {
+      pagesTotal: 1,
+      txs: t
+    };   
+    
+    let transactions: any[] = [];
+    for (let i in txns) {
+      let result = await getDetailedTransaction(chain, network, txns[i].txid);
+      if (result.status === 200) {
+        transactions.push(result.message)
+      }
+    }
+
+    response.txs = transactions;
+    
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(JSON.stringify(response));
   } catch (err) {
     console.log(err);
     return res.status(500).send(err);
